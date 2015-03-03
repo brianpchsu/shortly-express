@@ -114,7 +114,7 @@ app.get('/signup', function(req, res) {
 app.get('/logout', function(req, res) {
   req.session.destroy(function() {
     res.redirect('/login');
-  });
+    });
 });
 
 app.post('/login', function(req, res) {
