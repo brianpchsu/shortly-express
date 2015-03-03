@@ -2,7 +2,8 @@ var express = require('express');
 var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
-
+var expressSession = require('express-session');
+var cookieParser = require('cookie-parser');
 
 var db = require('./app/config');
 var Users = require('./app/collections/users');
@@ -12,9 +13,9 @@ var Link = require('./app/models/link');
 var Click = require('./app/models/click');
 
 var app = express();
-
 app.set('views', __dirname + '/views');
 app.set('view engine', 'ejs');
+app.use(cookieParser());
 app.use(partials());
 // Parse JSON (uniform resource locators)
 app.use(bodyParser.json());
@@ -22,30 +23,37 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
 
-var checkUser = function(res, callback){
-  if (!true) { // check database for user cookie
-    callback();
-  } else {
-    res.redirect('login');
-  }
+app.use(expressSession({secret:'teamBrian&Tyler'}));
+
+var checkUser = function(req, res, callback){
+  console.dir(req.session.id);
+
+  new User({session_id: req.session.id}).fetch().then(function(user) {
+    console.log("user is ", user);
+    if (!user) {
+      res.redirect('/login');
+    } else {
+      callback();
+    }
+  });
 };
 
 app.get('/', function(req, res) {
   // console.log(req.headers.cookie);
   // res.cookie('token', 'your new token');
-  checkUser(res, function() {
+  checkUser(req, res, function() {
     res.render('index');
   });
 });
 
 app.get('/create', function(req, res) {
-  checkUser(res, function() {
+  checkUser(req, res, function() {
     res.render('index');
   });
 });
 
 app.get('/links', function(req, res) {
-  checkUser(res, function() {
+  checkUser(req, res, function() {
     Links.reset().fetch().then(function(links) {
       res.send(200, links.models);
     });
@@ -94,11 +102,10 @@ app.get('/login', function(req, res) {
   res.render('login');
 });
 
-  // var user = new User({username: "fred", password: "1234"});
-  // user.save().then(function(newUser){
-  //   Users.add(newUser);
-  //   console.log('added fred');
-  // });
+app.get('/signup', function(req, res) {
+  res.render('signup');
+});
+
 
 app.post('/login', function(req, res) {
   var username = req.body.username;
@@ -109,13 +116,34 @@ app.post('/login', function(req, res) {
       // res.end("Wrong password");
       res.redirect('/login');
     } else {
-      console.log(user.attributes.password);
-      res.end();
+      console.log('old session id', user.get('session_id'));
+      console.log('new session id: ', req.session.id);
+      // user.set('session_id', req.session.id);
+      // user.save().then(function(){
+        res.redirect('/');
+      // });
     }
   });
 
 });
 
+app.post('/signup', function(req, res){
+  var username = req.body.username;
+  var password = req.body.password;
+
+  var user = new User({
+    username: username,
+    password: password,
+    session_id: req.session.id
+  });
+
+  user.save().then(function(newUser){
+    Users.add(newUser);
+    console.log('added new user');
+    res.redirect('/');
+    // res.end();
+  });
+})
 /************************************************************/
 // Handle the wildcard route last - if all other routes fail
 // assume the route is a short code and try and handle it here.
