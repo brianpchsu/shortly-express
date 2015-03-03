@@ -48,7 +48,6 @@ db.knex.schema.hasTable('users').then(function(exists) {
       user.integer('link_id');
       user.string('username');
       user.string('password');
-      user.string('session_id');
       user.timestamps();
     }).then(function (table) {
       console.log('Created Table', table);

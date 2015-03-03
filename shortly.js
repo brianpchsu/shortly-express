@@ -28,14 +28,19 @@ app.use(expressSession({secret:'teamBrian&Tyler'}));
 var checkUser = function(req, res, callback){
   console.dir(req.session.id);
 
-  new User({session_id: req.session.id}).fetch().then(function(user) {
-    console.log("user is ", user);
-    if (!user) {
-      res.redirect('/login');
-    } else {
-      callback();
-    }
-  });
+  // new User({session_id: req.session.id}).fetch().then(function(user) {
+  //   console.log("user is ", user);
+  //   if (!user) {
+  //     res.redirect('/login');
+  //   } else {
+  //     callback();
+  //   }
+  // });
+  if (req.session.username) {
+    callback();
+  } else {
+    res.redirect('/login');
+  }
 };
 
 app.get('/', function(req, res) {
@@ -106,6 +111,11 @@ app.get('/signup', function(req, res) {
   res.render('signup');
 });
 
+app.get('/logout', function(req, res) {
+  req.session.destroy(function() {
+    res.redirect('/login');
+  });
+});
 
 app.post('/login', function(req, res) {
   var username = req.body.username;
@@ -116,12 +126,10 @@ app.post('/login', function(req, res) {
       // res.end("Wrong password");
       res.redirect('/login');
     } else {
-      console.log('old session id', user.get('session_id'));
-      console.log('new session id: ', req.session.id);
-      // user.set('session_id', req.session.id);
-      // user.save().then(function(){
+      req.session.regenerate(function() {
+        req.session.username = username;
         res.redirect('/');
-      // });
+      });
     }
   });
 
@@ -133,17 +141,19 @@ app.post('/signup', function(req, res){
 
   var user = new User({
     username: username,
-    password: password,
-    session_id: req.session.id
+    password: password
   });
 
   user.save().then(function(newUser){
     Users.add(newUser);
     console.log('added new user');
-    res.redirect('/');
-    // res.end();
+    req.session.regenerate(function() {
+      req.session.username = username;
+      res.redirect('/');
+    });
   });
-})
+});
+
 /************************************************************/
 // Handle the wildcard route last - if all other routes fail
 // assume the route is a short code and try and handle it here.
