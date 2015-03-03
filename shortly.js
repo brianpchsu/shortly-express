@@ -22,26 +22,37 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
 
+var checkUser = function(res, callback){
+  if (!true) { // check database for user cookie
+    callback();
+  } else {
+    res.redirect('login');
+  }
+};
 
-app.get('/', 
-function(req, res) {
-  res.render('index');
-});
-
-app.get('/create', 
-function(req, res) {
-  res.render('index');
-});
-
-app.get('/links', 
-function(req, res) {
-  Links.reset().fetch().then(function(links) {
-    res.send(200, links.models);
+app.get('/', function(req, res) {
+  // console.log(req.headers.cookie);
+  // res.cookie('token', 'your new token');
+  checkUser(res, function() {
+    res.render('index');
   });
 });
 
-app.post('/links', 
-function(req, res) {
+app.get('/create', function(req, res) {
+  checkUser(res, function() {
+    res.render('index');
+  });
+});
+
+app.get('/links', function(req, res) {
+  checkUser(res, function() {
+    Links.reset().fetch().then(function(links) {
+      res.send(200, links.models);
+    });
+  });
+});
+
+app.post('/links', function(req, res) {
   var uri = req.body.url;
 
   if (!util.isValidUrl(uri)) {
@@ -79,6 +90,31 @@ function(req, res) {
 /************************************************************/
 
 
+app.get('/login', function(req, res) {
+  res.render('login');
+});
+
+  // var user = new User({username: "fred", password: "1234"});
+  // user.save().then(function(newUser){
+  //   Users.add(newUser);
+  //   console.log('added fred');
+  // });
+
+app.post('/login', function(req, res) {
+  var username = req.body.username;
+  var password = req.body.password;
+
+  new User({ username: username, password: password}).fetch().then(function(user) {
+    if (!user) {
+      // res.end("Wrong password");
+      res.redirect('/login');
+    } else {
+      console.log(user.attributes.password);
+      res.end();
+    }
+  });
+
+});
 
 /************************************************************/
 // Handle the wildcard route last - if all other routes fail
