@@ -11,6 +11,10 @@ var User = require('./app/models/user');
 var Links = require('./app/collections/links');
 var Link = require('./app/models/link');
 var Click = require('./app/models/click');
+var passport = require('passport');
+var GithubStrategy = require('passport-github').Strategy;
+var githubcode = require('./githubapp.js');
+var auth = require('./auth.js');
 
 var app = express();
 app.set('views', __dirname + '/views');
@@ -24,6 +28,41 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
 
 app.use(expressSession({secret:'teamBrian&Tyler'}));
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+passport.use(new GithubStrategy({
+  clientID: githubcode.clientID,
+  clientSecret: githubcode.secret,
+  callbackURL: 'http://127.0.0.1:4568/auth/callback'
+}, function(accessToken, refreshToken, profile, done){
+  done(null, {
+    accessToken: accessToken,
+    profile: profile
+  });
+}));
+
+passport.serializeUser(function(user, done) {
+  // for the time being tou can serialize the user
+  // object {accessToken: accessToken, profile: profile }
+  // In the real app you might be storing on the id like user.profile.id
+  done(null, user);
+});
+
+passport.deserializeUser(function(user, done) {
+  // If you are storing the whole user on session we can just pass to the done method,
+  // But if you are storing the user id you need to query your db and get the user
+  //object and pass to done()
+  done(null, user);
+});
+
+app.get('/auth', passport.authenticate('github'));
+app.get('/auth/error', auth.error);
+app.get('/auth/callback',
+  passport.authenticate('github', {failureRedirect: '/auth/error'}),
+  auth.callback
+);
 
 // var checkUser = function(req, res, callback){
 //   console.dir(req.session.id);
