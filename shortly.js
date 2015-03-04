@@ -25,43 +25,35 @@ app.use(express.static(__dirname + '/public'));
 
 app.use(expressSession({secret:'teamBrian&Tyler'}));
 
-var checkUser = function(req, res, callback){
-  console.dir(req.session.id);
+// var checkUser = function(req, res, callback){
+//   console.dir(req.session.id);
 
-  // new User({session_id: req.session.id}).fetch().then(function(user) {
-  //   console.log("user is ", user);
-  //   if (!user) {
-  //     res.redirect('/login');
-  //   } else {
-  //     callback();
-  //   }
-  // });
-  if (req.session.username) {
-    callback();
-  } else {
-    res.redirect('/login');
-  }
-};
+//   // new User({session_id: req.session.id}).fetch().then(function(user) {
+//   //   console.log("user is ", user);
+//   //   if (!user) {
+//   //     res.redirect('/login');
+//   //   } else {
+//   //     callback();
+//   //   }
+//   // });
+//   if (req.session.username) {
+//     callback();
+//   } else {
+//     res.redirect('/login');
+//   }
+// };
 
-app.get('/', function(req, res) {
-  // console.log(req.headers.cookie);
-  // res.cookie('token', 'your new token');
-  checkUser(req, res, function() {
-    res.render('index');
-  });
+app.get('/', util.checkUser, function(req, res) {
+  res.render('index');
 });
 
-app.get('/create', function(req, res) {
-  checkUser(req, res, function() {
-    res.render('index');
-  });
+app.get('/create', util.checkUser, function(req, res) {
+  res.render('index');
 });
 
-app.get('/links', function(req, res) {
-  checkUser(req, res, function() {
-    Links.reset().fetch().then(function(links) {
-      res.send(200, links.models);
-    });
+app.get('/links', util.checkUser, function(req, res) {
+  Links.reset().fetch().then(function(links) {
+    res.send(200, links.models);
   });
 });
 
@@ -114,22 +106,28 @@ app.get('/signup', function(req, res) {
 app.get('/logout', function(req, res) {
   req.session.destroy(function() {
     res.redirect('/login');
-    });
+  });
 });
 
 app.post('/login', function(req, res) {
   var username = req.body.username;
   var password = req.body.password;
 
-  new User({ username: username, password: password}).fetch().then(function(user) {
+  new User({ username: username }).fetch().then(function(user) {
     if (!user) {
       // res.end("Wrong password");
       res.redirect('/login');
     } else {
-      req.session.regenerate(function() {
-        req.session.username = username;
-        res.redirect('/');
-      });
+      user.comparePassword(password, function(match){
+        if (match) {
+          req.session.regenerate(function() {
+            req.session.username = username;
+            res.redirect('/');
+          });
+        } else {
+          res.redirect('/login');
+        }
+      })
     }
   });
 
@@ -139,19 +137,28 @@ app.post('/signup', function(req, res){
   var username = req.body.username;
   var password = req.body.password;
 
-  var user = new User({
-    username: username,
-    password: password
-  });
+    new User({ username: username })
+    .fetch()
+    .then(function(user) {
+      if(!user){
+        var user = new User({
+          username: username,
+          password: password
+        });
 
-  user.save().then(function(newUser){
-    Users.add(newUser);
-    console.log('added new user');
-    req.session.regenerate(function() {
-      req.session.username = username;
-      res.redirect('/');
+        user.save().then(function(newUser){
+          Users.add(newUser);
+          console.log('added new user');
+          req.session.regenerate(function() {
+            req.session.username = username;
+            res.redirect('/');
+          });
+        });
+      } else {
+        console.log("The name is being used!");
+        res.redirect('/signup');
+      }
     });
-  });
 });
 
 /************************************************************/
